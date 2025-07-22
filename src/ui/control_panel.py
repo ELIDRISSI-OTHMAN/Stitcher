@@ -259,13 +259,6 @@ class ControlPanel(QWidget):
             self.flip_h_btn.setEnabled(False)
             self.flip_v_btn.setEnabled(False)
             
-            # ENABLE arrow movement buttons for groups
-            self.up_btn.setEnabled(True)
-            self.down_btn.setEnabled(True)
-            self.left_btn.setEnabled(True)
-            self.right_btn.setEnabled(True)
-            self.center_btn.setEnabled(True)
-            
             # DISABLE visibility and opacity for groups (these are per-fragment properties)
             self.visible_checkbox.setEnabled(False)
             self.opacity_slider.setEnabled(False)
