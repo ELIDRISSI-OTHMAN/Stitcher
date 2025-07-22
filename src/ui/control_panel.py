@@ -5,7 +5,7 @@ Control panel for fragment manipulation
 from typing import Optional, List
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, 
                             QPushButton, QLabel, QSpinBox, QDoubleSpinBox,
-                            QSlider, QCheckBox, QGridLayout)
+                            QSlider, QCheckBox, QGridLayout, QTabWidget)
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QIcon
 
@@ -33,6 +33,28 @@ class ControlPanel(QWidget):
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
         
+        # Create tab widget
+        self.tab_widget = QTabWidget()
+        layout.addWidget(self.tab_widget)
+        
+        # Single fragment tab
+        self.fragment_tab = QWidget()
+        self.setup_fragment_tab()
+        self.tab_widget.addTab(self.fragment_tab, "Fragment")
+        
+        # Group selection tab
+        self.group_tab = QWidget()
+        self.setup_group_tab()
+        self.tab_widget.addTab(self.group_tab, "Group")
+        
+        # Add stretch to push everything to top
+        layout.addStretch()
+        
+    def setup_fragment_tab(self):
+        """Setup the single fragment controls tab"""
+        layout = QVBoxLayout(self.fragment_tab)
+        layout.setSpacing(10)
+        
         # Fragment info group
         self.info_group = QGroupBox("Fragment Information")
         self.setup_info_group()
@@ -53,8 +75,116 @@ class ControlPanel(QWidget):
         self.setup_display_group()
         layout.addWidget(self.display_group)
         
-        # Add stretch to push everything to top
-        layout.addStretch()
+    def setup_group_tab(self):
+        """Setup the group selection controls tab"""
+        layout = QVBoxLayout(self.group_tab)
+        layout.setSpacing(10)
+        
+        # Group info
+        self.group_info_group = QGroupBox("Group Information")
+        group_info_layout = QVBoxLayout(self.group_info_group)
+        
+        self.group_name_label = QLabel("No group selected")
+        self.group_name_label.setStyleSheet("font-weight: bold; color: #4a90e2;")
+        group_info_layout.addWidget(self.group_name_label)
+        
+        layout.addWidget(self.group_info_group)
+        
+        # Group rotation controls
+        self.group_rotation_group = QGroupBox("Group Rotation")
+        rotation_layout = QVBoxLayout(self.group_rotation_group)
+        
+        # Large rotation buttons
+        rotation_buttons_layout = QHBoxLayout()
+        
+        self.group_rotate_ccw_btn = QPushButton("↺ 90° CCW")
+        self.group_rotate_ccw_btn.setMinimumHeight(50)
+        self.group_rotate_ccw_btn.setStyleSheet("""
+            QPushButton {
+                font-size: 16px;
+                font-weight: bold;
+                background-color: #4a90e2;
+                color: white;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #5a9bd4;
+            }
+            QPushButton:pressed {
+                background-color: #3a80d2;
+            }
+        """)
+        self.group_rotate_ccw_btn.clicked.connect(lambda: self.request_group_transform('rotate_ccw'))
+        rotation_buttons_layout.addWidget(self.group_rotate_ccw_btn)
+        
+        self.group_rotate_cw_btn = QPushButton("↻ 90° CW")
+        self.group_rotate_cw_btn.setMinimumHeight(50)
+        self.group_rotate_cw_btn.setStyleSheet("""
+            QPushButton {
+                font-size: 16px;
+                font-weight: bold;
+                background-color: #4a90e2;
+                color: white;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #5a9bd4;
+            }
+            QPushButton:pressed {
+                background-color: #3a80d2;
+            }
+        """)
+        self.group_rotate_cw_btn.clicked.connect(lambda: self.request_group_transform('rotate_cw'))
+        rotation_buttons_layout.addWidget(self.group_rotate_cw_btn)
+        
+        rotation_layout.addLayout(rotation_buttons_layout)
+        layout.addWidget(self.group_rotation_group)
+        
+        # Group movement controls
+        self.group_movement_group = QGroupBox("Group Movement")
+        movement_layout = QVBoxLayout(self.group_movement_group)
+        
+        # Movement buttons grid
+        movement_grid = QGridLayout()
+        
+        # Up
+        self.group_up_btn = QPushButton("↑")
+        self.group_up_btn.setMinimumSize(40, 40)
+        self.group_up_btn.clicked.connect(lambda: self.request_group_transform('translate', (0, -10)))
+        movement_grid.addWidget(self.group_up_btn, 0, 1)
+        
+        # Left, Center, Right
+        self.group_left_btn = QPushButton("←")
+        self.group_left_btn.setMinimumSize(40, 40)
+        self.group_left_btn.clicked.connect(lambda: self.request_group_transform('translate', (-10, 0)))
+        movement_grid.addWidget(self.group_left_btn, 1, 0)
+        
+        self.group_center_btn = QPushButton("⌂")
+        self.group_center_btn.setMinimumSize(40, 40)
+        self.group_center_btn.setToolTip("Center group")
+        self.group_center_btn.clicked.connect(lambda: self.request_group_transform('translate', (0, 0)))
+        movement_grid.addWidget(self.group_center_btn, 1, 1)
+        
+        self.group_right_btn = QPushButton("→")
+        self.group_right_btn.setMinimumSize(40, 40)
+        self.group_right_btn.clicked.connect(lambda: self.request_group_transform('translate', (10, 0)))
+        movement_grid.addWidget(self.group_right_btn, 1, 2)
+        
+        # Down
+        self.group_down_btn = QPushButton("↓")
+        self.group_down_btn.setMinimumSize(40, 40)
+        self.group_down_btn.clicked.connect(lambda: self.request_group_transform('translate', (0, 10)))
+        movement_grid.addWidget(self.group_down_btn, 2, 1)
+        
+        movement_layout.addLayout(movement_grid)
+        layout.addWidget(self.group_movement_group)
+        
+        # Group reset button
+        self.group_reset_btn = QPushButton("Reset All Group Transforms")
+        self.group_reset_btn.setMinimumHeight(40)
+        self.group_reset_btn.setStyleSheet("QPushButton { background-color: #d32f2f; color: white; font-weight: bold; }")
+        self.group_reset_btn.clicked.connect(self.request_group_reset)
+        layout.addWidget(self.group_reset_btn)
         
     def setup_info_group(self):
         """Setup fragment information display"""
@@ -218,6 +348,12 @@ class ControlPanel(QWidget):
         self.current_fragment = fragment
         self.selected_fragment_ids = []
         self.is_group_selected = False
+        
+        # Switch to fragment tab
+        self.tab_widget.setCurrentWidget(self.fragment_tab)
+        self.group_tab.setEnabled(False)
+        self.fragment_tab.setEnabled(True)
+        
         self.update_controls()
     
     def set_selected_fragments(self, fragment_ids: List[str], fragments: List[Fragment]):
@@ -225,46 +361,34 @@ class ControlPanel(QWidget):
         self.selected_fragment_ids = fragment_ids
         self.is_group_selected = len(fragment_ids) > 1
         self.current_fragment = fragments[0] if fragments else None  # Use first fragment for display
+        
+        if self.is_group_selected:
+            # Switch to group tab
+            self.tab_widget.setCurrentWidget(self.group_tab)
+            self.group_tab.setEnabled(True)
+            self.fragment_tab.setEnabled(False)
+            
+            # Update group info
+            self.group_name_label.setText(f"Group Selection ({len(fragment_ids)} fragments)")
+        
         self.update_controls()
         
     def update_controls(self):
         """Update control states based on current fragment"""
         has_fragment = self.current_fragment is not None or self.is_group_selected
         
-        # Enable/disable controls
-        self.transform_group.setEnabled(has_fragment)
-        self.position_group.setEnabled(has_fragment)  # Enable position controls for both single and group
-        self.display_group.setEnabled(has_fragment)
-        
         if self.is_group_selected:
-            # Update info for group selection
-            self.name_label.setText(f"Group Selection ({len(self.selected_fragment_ids)} fragments)")
-            self.size_label.setText("Size: Multiple")
-            self.file_label.setText("File: Multiple")
-            
-            # For groups: ENABLE 90° rotation buttons
-            self.rotate_cw_btn.setEnabled(True)
-            self.rotate_ccw_btn.setEnabled(True)
-            
-            # DISABLE precise angle control and 45° buttons for groups
-            self.angle_spinbox.setEnabled(False)
-            self.angle_45_btn.setEnabled(False)
-            self.angle_neg45_btn.setEnabled(False)
-            
-            # DISABLE precise position spinboxes for groups (but enable arrow buttons)
-            self.x_spinbox.setEnabled(False)
-            self.y_spinbox.setEnabled(False)
-            
-            # DISABLE flip controls for groups
-            self.flip_h_btn.setEnabled(False)
-            self.flip_v_btn.setEnabled(False)
-            
-            # DISABLE visibility and opacity for groups (these are per-fragment properties)
-            self.visible_checkbox.setEnabled(False)
-            self.opacity_slider.setEnabled(False)
+            # Group controls are handled by the group tab
+            self.group_rotation_group.setEnabled(True)
+            self.group_movement_group.setEnabled(True)
+            self.group_reset_btn.setEnabled(True)
             
         elif has_fragment and not self.is_group_selected:
             # Single fragment selection - enable everything
+            self.transform_group.setEnabled(True)
+            self.position_group.setEnabled(True)
+            self.display_group.setEnabled(True)
+            
             fragment = self.current_fragment
             
             # Enable all controls for single fragments
@@ -314,6 +438,9 @@ class ControlPanel(QWidget):
             
         else:
             # No selection - disable everything
+            self.transform_group.setEnabled(False)
+            self.position_group.setEnabled(False)
+            self.display_group.setEnabled(False)
             self.name_label.setText("No selection")
             self.size_label.setText("Size: -")
             self.file_label.setText("File: -")
@@ -338,18 +465,23 @@ class ControlPanel(QWidget):
             
     def request_transform(self, transform_type: str, value=None):
         """Request a transformation for the current fragment"""
-        if self.is_group_selected:
-            # Handle group transformations
-            if transform_type in ['rotate_cw', 'rotate_ccw']:
-                # Group rotation is allowed
-                self.transform_requested.emit('group', transform_type, self.selected_fragment_ids)
-            elif transform_type == 'translate':
-                # Group translation - emit as a group operation
-                self.transform_requested.emit('group', transform_type, (self.selected_fragment_ids, value))
-            # Other transforms are disabled for groups, so they won't reach here
-        elif self.current_fragment:
+        if self.current_fragment and not self.is_group_selected:
             # Handle single fragment transformations
             self.transform_requested.emit(self.current_fragment.id, transform_type, value)
+    
+    def request_group_transform(self, transform_type: str, value=None):
+        """Request a transformation for the group"""
+        if self.is_group_selected:
+            if transform_type in ['rotate_cw', 'rotate_ccw']:
+                self.transform_requested.emit('group', transform_type, self.selected_fragment_ids)
+            elif transform_type == 'translate':
+                self.transform_requested.emit('group', transform_type, (self.selected_fragment_ids, value))
+    
+    def request_group_reset(self):
+        """Request reset of all group fragment transforms"""
+        if self.is_group_selected:
+            for fragment_id in self.selected_fragment_ids:
+                self.reset_transform_requested.emit(fragment_id)
             
     def request_reset(self):
         """Request reset of current fragment transforms"""
