@@ -233,7 +233,7 @@ class ControlPanel(QWidget):
         
         # Enable/disable controls
         self.transform_group.setEnabled(has_fragment)
-        self.position_group.setEnabled(has_fragment and not self.is_group_selected)  # Disable position controls for groups
+        self.position_group.setEnabled(has_fragment)  # Enable position controls for both single and group
         self.display_group.setEnabled(has_fragment)
         
         if self.is_group_selected:
@@ -251,7 +251,7 @@ class ControlPanel(QWidget):
             self.angle_45_btn.setEnabled(False)
             self.angle_neg45_btn.setEnabled(False)
             
-            # DISABLE precise position spinboxes for groups
+            # DISABLE precise position spinboxes for groups (but enable arrow buttons)
             self.x_spinbox.setEnabled(False)
             self.y_spinbox.setEnabled(False)
             
@@ -259,7 +259,7 @@ class ControlPanel(QWidget):
             self.flip_h_btn.setEnabled(False)
             self.flip_v_btn.setEnabled(False)
             
-            # ENABLE arrow movement buttons for groups (this was incorrectly disabled)
+            # ENABLE arrow movement buttons for groups
             self.up_btn.setEnabled(True)
             self.down_btn.setEnabled(True)
             self.left_btn.setEnabled(True)

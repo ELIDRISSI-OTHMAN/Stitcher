@@ -329,30 +329,8 @@ class MainWindow(QMainWindow):
         
     def apply_transform(self, fragment_id: str, transform_type: str, value=None):
         """Apply transformation to fragment"""
-        fragment = self.fragment_manager.get_fragment(fragment_id)
-        if not fragment:
-            return
-            
-        if transform_type == 'rotate_cw':
-            self.fragment_manager.rotate_fragment(fragment_id, 90)
-        elif transform_type == 'rotate_ccw':
-            self.fragment_manager.rotate_fragment(fragment_id, -90)
-        elif transform_type == 'rotate_angle':
-            self.fragment_manager.rotate_fragment(fragment_id, value)
-        elif transform_type == 'set_rotation':
-            self.fragment_manager.set_fragment_rotation(fragment_id, value)
-        elif transform_type == 'flip_horizontal':
-            self.fragment_manager.flip_fragment(fragment_id, horizontal=True)
-        elif transform_type == 'flip_vertical':
-            self.fragment_manager.flip_fragment(fragment_id, horizontal=False)
-        elif transform_type == 'translate':
-            dx, dy = value
-            self.fragment_manager.translate_fragment(fragment_id, dx, dy)
-        elif transform_type == 'set_visibility':
-            self.fragment_manager.set_fragment_visibility(fragment_id, value)
-            
         # Handle group transformations
-        elif fragment_id == 'group':
+        if fragment_id == 'group':
             if transform_type == 'rotate_cw':
                 self.fragment_manager.rotate_group(value, 90)  # value contains fragment_ids
             elif transform_type == 'rotate_ccw':
@@ -361,6 +339,29 @@ class MainWindow(QMainWindow):
                 # For group translation, value contains (fragment_ids, (dx, dy))
                 fragment_ids, (dx, dy) = value
                 self.fragment_manager.translate_group(fragment_ids, dx, dy)
+        else:
+            # Handle single fragment transformations
+            fragment = self.fragment_manager.get_fragment(fragment_id)
+            if not fragment:
+                return
+                
+            if transform_type == 'rotate_cw':
+                self.fragment_manager.rotate_fragment(fragment_id, 90)
+            elif transform_type == 'rotate_ccw':
+                self.fragment_manager.rotate_fragment(fragment_id, -90)
+            elif transform_type == 'rotate_angle':
+                self.fragment_manager.rotate_fragment(fragment_id, value)
+            elif transform_type == 'set_rotation':
+                self.fragment_manager.set_fragment_rotation(fragment_id, value)
+            elif transform_type == 'flip_horizontal':
+                self.fragment_manager.flip_fragment(fragment_id, horizontal=True)
+            elif transform_type == 'flip_vertical':
+                self.fragment_manager.flip_fragment(fragment_id, horizontal=False)
+            elif transform_type == 'translate':
+                dx, dy = value
+                self.fragment_manager.translate_fragment(fragment_id, dx, dy)
+            elif transform_type == 'set_visibility':
+                self.fragment_manager.set_fragment_visibility(fragment_id, value)
             
     def reset_fragment_transform(self, fragment_id: str):
         """Reset fragment transformation"""
@@ -494,6 +495,8 @@ class MainWindow(QMainWindow):
         fragments = self.fragment_manager.get_all_fragments()
         
         # Update fragment list
+        self.fragment_list.set_selected_fragment_ids(fragment_ids)
+        
         self.fragment_list.update_fragments(fragments)
         
         # Update fragment list selection state
