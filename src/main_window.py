@@ -495,8 +495,6 @@ class MainWindow(QMainWindow):
         fragments = self.fragment_manager.get_all_fragments()
         
         # Update fragment list
-        self.fragment_list.set_selected_fragment_ids(fragment_ids)
-        
         self.fragment_list.update_fragments(fragments)
         
         # Update fragment list selection state
