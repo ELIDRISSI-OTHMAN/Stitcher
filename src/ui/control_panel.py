@@ -242,7 +242,7 @@ class ControlPanel(QWidget):
             self.size_label.setText("Size: Multiple")
             self.file_label.setText("File: Multiple")
             
-            # For groups: ENABLE 90° rotation buttons and arrow movement
+            # For groups: ENABLE 90° rotation buttons
             self.rotate_cw_btn.setEnabled(True)
             self.rotate_ccw_btn.setEnabled(True)
             
@@ -259,7 +259,7 @@ class ControlPanel(QWidget):
             self.flip_h_btn.setEnabled(False)
             self.flip_v_btn.setEnabled(False)
             
-            # ENABLE arrow movement buttons for groups
+            # ENABLE arrow movement buttons for groups (this was incorrectly disabled)
             self.up_btn.setEnabled(True)
             self.down_btn.setEnabled(True)
             self.left_btn.setEnabled(True)
@@ -351,10 +351,8 @@ class ControlPanel(QWidget):
                 # Group rotation is allowed
                 self.transform_requested.emit('group', transform_type, self.selected_fragment_ids)
             elif transform_type == 'translate':
-                # Group translation - emit for each fragment in the group
-                dx, dy = value
-                for fragment_id in self.selected_fragment_ids:
-                    self.transform_requested.emit(fragment_id, transform_type, value)
+                # Group translation - emit as a group operation
+                self.transform_requested.emit('group', transform_type, (self.selected_fragment_ids, value))
             # Other transforms are disabled for groups, so they won't reach here
         elif self.current_fragment:
             # Handle single fragment transformations
