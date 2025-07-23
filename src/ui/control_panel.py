@@ -396,10 +396,22 @@ class ControlPanel(QWidget):
         has_fragment = self.current_fragment is not None or self.is_group_selected
         
         if self.is_group_selected:
-            # Group controls are handled by the group tab
+            # Enable all group controls
             self.group_rotation_group.setEnabled(True)
             self.group_movement_group.setEnabled(True)
             self.group_reset_btn.setEnabled(True)
+            
+            # Enable individual group buttons
+            self.group_rotate_ccw_btn.setEnabled(True)
+            self.group_rotate_cw_btn.setEnabled(True)
+            self.group_up_btn.setEnabled(True)
+            self.group_down_btn.setEnabled(True)
+            self.group_left_btn.setEnabled(True)
+            self.group_right_btn.setEnabled(True)
+            self.group_center_btn.setEnabled(True)
+            
+            # Update group info
+            self.group_name_label.setText(f"Group Selection ({len(self.selected_fragment_ids)} fragments)")
             
         elif has_fragment and not self.is_group_selected:
             # Single fragment selection - enable everything
