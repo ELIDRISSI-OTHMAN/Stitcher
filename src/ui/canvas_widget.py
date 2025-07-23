@@ -13,6 +13,7 @@ from PyQt6.QtCore import QPointF, QRectF
 import cv2
 
 from ..core.fragment import Fragment
+from ..core.labeled_point import LabeledPoint
 
 class FragmentRenderer(QObject):
     """Background fragment renderer for better performance"""
@@ -88,10 +89,12 @@ class CanvasWidget(QWidget):
     delete_requested = pyqtSignal(str)  # fragment_id
     group_selected = pyqtSignal(list)  # list of fragment_ids
     group_moved = pyqtSignal(list, float, float)  # fragment_ids, dx, dy
+    point_add_requested = pyqtSignal(str, float, float)  # fragment_id, x, y
     
     def __init__(self):
         super().__init__()
         self.fragments: List[Fragment] = []
+        self.labeled_points: List[LabeledPoint] = []
         self.selected_fragment_id: Optional[str] = None
         self.selected_fragment_ids: List[str] = []  # For group selection
         
@@ -112,6 +115,7 @@ class CanvasWidget(QWidget):
         # Rectangle selection state
         self.is_rectangle_selecting = False
         self.rectangle_selection_enabled = False
+        self.point_adding_mode = False
         self.selection_start_pos = QPoint()
         self.selection_current_pos = QPoint()
         self.selection_rect = QRect()
@@ -156,6 +160,19 @@ class CanvasWidget(QWidget):
         # Enable double buffering
         self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+        
+    def set_point_adding_mode(self, enabled: bool):
+        """Enable or disable point adding mode"""
+        self.point_adding_mode = enabled
+        if enabled:
+            self.setCursor(Qt.CursorShape.CrossCursor)
+        else:
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+    
+    def update_labeled_points(self, points: List[LabeledPoint]):
+        """Update the labeled points list"""
+        self.labeled_points = points
+        self.update()
         
     def update_fragments(self, fragments: List[Fragment]):
         """Update the fragment list and mark for re-rendering"""
@@ -388,6 +405,9 @@ class CanvasWidget(QWidget):
         # Draw selection outlines
         self.draw_selection_outlines(painter)
         
+        # Draw labeled points
+        self.draw_labeled_points(painter)
+        
         # Draw rectangle selection
         if self.is_rectangle_selecting:
             self.draw_selection_rectangle(painter)
@@ -463,11 +483,82 @@ class CanvasWidget(QWidget):
         painter.setPen(pen)
         painter.setBrush(QBrush())
         painter.drawRect(self.selection_rect)
+        
+    def draw_labeled_points(self, painter: QPainter):
+        """Draw labeled points on fragments"""
+        if not self.labeled_points:
+            return
+        
+        # Point styling
+        point_radius = 8.0 / self.zoom
+        point_color = QColor(255, 100, 100)  # Red
+        text_color = QColor(255, 255, 255)  # White
+        
+        painter.setPen(QPen(point_color, 2.0 / self.zoom))
+        painter.setBrush(QBrush(point_color))
+        
+        for point in self.labeled_points:
+            # Get fragment to convert local to world coordinates
+            fragment = self.get_fragment_by_id(point.fragment_id)
+            if not fragment or not fragment.visible:
+                continue
+            
+            # Convert point to world coordinates
+            world_x, world_y = self.point_local_to_world(point, fragment)
+            
+            # Draw point circle
+            painter.drawEllipse(QPointF(world_x, world_y), point_radius, point_radius)
+            
+            # Draw label text
+            painter.setPen(QPen(text_color, 1.0 / self.zoom))
+            text_offset = point_radius + 2.0 / self.zoom
+            painter.drawText(QPointF(world_x + text_offset, world_y - text_offset), point.label)
+            
+            # Restore pen for next point
+            painter.setPen(QPen(point_color, 2.0 / self.zoom))
+    
+    def point_local_to_world(self, point: LabeledPoint, fragment: Fragment) -> Tuple[float, float]:
+        """Convert point from fragment local coordinates to world coordinates"""
+        import math
+        
+        x, y = point.x, point.y
+        
+        # Apply rotation
+        if abs(fragment.rotation) > 0.01:
+            angle_rad = math.radians(fragment.rotation)
+            cos_a = math.cos(angle_rad)
+            sin_a = math.sin(angle_rad)
+            
+            x_rot = x * cos_a - y * sin_a
+            y_rot = x * sin_a + y * cos_a
+            x, y = x_rot, y_rot
+        
+        # Apply flips
+        if fragment.flip_horizontal:
+            x = -x
+        if fragment.flip_vertical:
+            y = -y
+        
+        # Apply translation
+        world_x = x + fragment.x
+        world_y = y + fragment.y
+        
+        return (world_x, world_y)
                 
     def mousePressEvent(self, event: QMouseEvent):
         """Handle mouse press events"""
         if event.button() == Qt.MouseButton.LeftButton:
-            if self.rectangle_selection_enabled:
+            if self.point_adding_mode:
+                # Add labeled point
+                world_pos = self.screen_to_world(event.pos())
+                clicked_fragment = self.get_fragment_at_position(world_pos.x(), world_pos.y())
+                
+                if clicked_fragment:
+                    # Convert world coordinates to fragment local coordinates
+                    local_x, local_y = self.world_to_fragment_local(world_pos.x(), world_pos.y(), clicked_fragment)
+                    self.point_add_requested.emit(clicked_fragment.id, local_x, local_y)
+                
+            elif self.rectangle_selection_enabled:
                 # Start rectangle selection
                 self.is_rectangle_selecting = True
                 self.selection_start_pos = self.screen_to_world(event.pos())
@@ -505,6 +596,32 @@ class CanvasWidget(QWidget):
             self.is_panning = True
             
         self.last_mouse_pos = event.pos()
+        
+    def world_to_fragment_local(self, world_x: float, world_y: float, fragment: Fragment) -> Tuple[float, float]:
+        """Convert world coordinates to fragment local coordinates"""
+        import math
+        
+        # Remove translation
+        x = world_x - fragment.x
+        y = world_y - fragment.y
+        
+        # Remove flips
+        if fragment.flip_horizontal:
+            x = -x
+        if fragment.flip_vertical:
+            y = -y
+        
+        # Remove rotation
+        if abs(fragment.rotation) > 0.01:
+            angle_rad = math.radians(-fragment.rotation)  # Negative to reverse
+            cos_a = math.cos(angle_rad)
+            sin_a = math.sin(angle_rad)
+            
+            x_rot = x * cos_a - y * sin_a
+            y_rot = x * sin_a + y * cos_a
+            x, y = x_rot, y_rot
+        
+        return (x, y)
         
     def mouseMoveEvent(self, event: QMouseEvent):
         """Handle mouse move events"""

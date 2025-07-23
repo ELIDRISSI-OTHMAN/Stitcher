@@ -13,10 +13,12 @@ from PyQt6.QtGui import QAction, QKeySequence
 
 from .core.fragment_manager import FragmentManager
 from .core.image_loader import ImageLoader
+from .core.point_manager import PointManager
 from .ui.canvas_widget import CanvasWidget
 from .ui.control_panel import ControlPanel
 from .ui.fragment_list import FragmentListWidget
 from .ui.toolbar import ToolbarWidget
+from .ui.point_input_dialog import PointInputDialog
 from .utils.export_manager import ExportManager
 from .algorithms.rigid_stitching import RigidStitchingAlgorithm
 
@@ -29,6 +31,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.fragment_manager = FragmentManager()
+        self.point_manager = PointManager()
         self.image_loader = ImageLoader()
         self.export_manager = ExportManager()
         self.stitching_algorithm = RigidStitchingAlgorithm()
@@ -106,6 +109,7 @@ class MainWindow(QMainWindow):
         self.canvas_widget.fragment_selected.connect(self.select_fragment)
         self.canvas_widget.fragment_moved.connect(self.update_fragment_position)
         self.canvas_widget.group_moved.connect(self.update_group_position)
+        self.canvas_widget.point_add_requested.connect(self.add_labeled_point)
         
         # Fragment manager connections
         self.fragment_manager.fragments_changed.connect(self.update_ui)
@@ -114,6 +118,32 @@ class MainWindow(QMainWindow):
         
         # Canvas group selection
         self.canvas_widget.group_selected.connect(self.on_group_selected)
+        
+        # Point manager connections
+        self.point_manager.points_changed.connect(self.update_labeled_points)
+        
+    def update_labeled_points(self):
+        """Update labeled points display"""
+        points = self.point_manager.get_all_points()
+        self.canvas_widget.update_labeled_points(points)
+    
+    def add_labeled_point(self, fragment_id: str, local_x: float, local_y: float):
+        """Add a labeled point to a fragment"""
+        fragment = self.fragment_manager.get_fragment(fragment_id)
+        if not fragment:
+            return
+        
+        # Get existing labels for this fragment
+        existing_points = self.point_manager.get_fragment_points(fragment_id)
+        existing_labels = [p.label for p in existing_points]
+        
+        # Show point input dialog
+        dialog = PointInputDialog(self, existing_labels)
+        if dialog.exec() == PointInputDialog.DialogCode.Accepted:
+            label = dialog.get_label()
+            if label:
+                self.point_manager.add_point(fragment_id, label, local_x, local_y)
+                self.status_bar.showMessage(f"Added point '{label}' to {fragment.name}", 2000)
         
     def on_fragments_changed(self):
         """Handle fragment changes and update canvas efficiently"""
@@ -225,6 +255,89 @@ class MainWindow(QMainWindow):
         stitch_action.setShortcut(QKeySequence('Ctrl+S'))
         stitch_action.triggered.connect(self.perform_stitching)
         tools_menu.addAction(stitch_action)
+        
+        tools_menu.addSeparator()
+        
+        # Point-based stitching tools
+        add_point_action = QAction('&Add Labeled Point', self)
+        add_point_action.setShortcut(QKeySequence('Ctrl+P'))
+        add_point_action.setCheckable(True)
+        add_point_action.toggled.connect(self.toggle_point_adding_mode)
+        tools_menu.addAction(add_point_action)
+        
+        stitch_by_labels_action = QAction('&Stitch Fragments by Labels', self)
+        stitch_by_labels_action.setShortcut(QKeySequence('Ctrl+Shift+S'))
+        stitch_by_labels_action.triggered.connect(self.stitch_by_labels)
+        tools_menu.addAction(stitch_by_labels_action)
+        
+        clear_points_action = QAction('&Clear All Points', self)
+        clear_points_action.triggered.connect(self.clear_all_points)
+        tools_menu.addAction(clear_points_action)
+        
+    def toggle_point_adding_mode(self, enabled: bool):
+        """Toggle point adding mode"""
+        self.canvas_widget.set_point_adding_mode(enabled)
+        if enabled:
+            self.status_bar.showMessage("Point adding mode enabled - click on fragments to add labeled points")
+        else:
+            self.status_bar.showMessage("Point adding mode disabled")
+    
+    def stitch_by_labels(self):
+        """Perform stitching based on labeled points"""
+        fragments = self.fragment_manager.get_all_fragments()
+        if len(fragments) < 2:
+            QMessageBox.information(self, "Info", "Need at least 2 fragments for stitching")
+            return
+        
+        matching_labels = self.point_manager.get_matching_labels()
+        if not matching_labels:
+            QMessageBox.information(self, "Info", 
+                                  "No matching labels found between fragments.\n"
+                                  "Add labeled points with the same label to different fragments first.")
+            return
+        
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setRange(0, 0)  # Indeterminate progress
+        self.status_bar.showMessage("Performing label-based stitching...")
+        
+        try:
+            # Perform stitching
+            transforms = self.point_manager.stitch_fragments_by_labels(fragments)
+            
+            if not transforms:
+                QMessageBox.information(self, "Info", "No valid transformations computed")
+                return
+            
+            # Apply transforms
+            for fragment_id, transform in transforms.items():
+                fragment = self.fragment_manager.get_fragment(fragment_id)
+                if fragment:
+                    # Apply translation
+                    dx, dy = transform['translation']
+                    self.fragment_manager.translate_fragment(fragment_id, dx, dy)
+                    
+                    # Apply rotation
+                    if abs(transform['rotation']) > 0.01:
+                        self.fragment_manager.rotate_fragment(fragment_id, transform['rotation'])
+            
+            self.status_bar.showMessage(f"Label-based stitching completed - {len(transforms)} fragments aligned", 3000)
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Stitching failed: {str(e)}")
+        finally:
+            self.progress_bar.setVisible(False)
+    
+    def clear_all_points(self):
+        """Clear all labeled points"""
+        reply = QMessageBox.question(
+            self, "Clear Points", 
+            "Remove all labeled points?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            self.point_manager.clear_all_points()
+            self.status_bar.showMessage("All labeled points cleared", 2000)
         
     def toggle_rectangle_selection(self, enabled: bool):
         """Toggle rectangle selection mode"""
