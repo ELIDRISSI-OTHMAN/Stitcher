@@ -217,17 +217,22 @@ class FragmentManager(QObject):
     
     def rotate_group(self, fragment_ids: List[str], angle: int):
         """Rotate multiple fragments around their group center"""
+        print(f"rotate_group called with {len(fragment_ids)} fragments, angle: {angle}")
         if not fragment_ids:
             return
         
         # Get fragments
         fragments = [self._fragments[fid] for fid in fragment_ids if fid in self._fragments]
         if not fragments:
+            print("No valid fragments found!")
             return
+        
+        print(f"Found {len(fragments)} valid fragments to rotate")
         
         # Calculate group center (centroid) using fragment positions, not bounding boxes
         center_x = sum(f.x for f in fragments) / len(fragments)
         center_y = sum(f.y for f in fragments) / len(fragments)
+        print(f"Group center: ({center_x}, {center_y})")
         
         # Convert angle to radians
         angle_rad = math.radians(angle)
@@ -251,7 +256,9 @@ class FragmentManager(QObject):
             # Also rotate the fragment itself
             fragment.rotation = (fragment.rotation + angle) % 360.0
             fragment.invalidate_cache()
+            print(f"Rotated fragment {fragment.name}: new pos=({fragment.x:.1f}, {fragment.y:.1f}), new rotation={fragment.rotation}")
         
+        print("Group rotation completed, emitting fragments_changed")
         self.fragments_changed.emit()
     
     def flip_fragment(self, fragment_id: str, horizontal: bool = True):

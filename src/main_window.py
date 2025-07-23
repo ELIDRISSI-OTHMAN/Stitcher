@@ -329,16 +329,22 @@ class MainWindow(QMainWindow):
         
     def apply_transform(self, fragment_id: str, transform_type: str, value=None):
         """Apply transformation to fragment"""
-        # Handle group transformations
+        # Handle group transformations FIRST
         if fragment_id == 'group':
             if transform_type == 'rotate_cw':
-                self.fragment_manager.rotate_group(value, 90)  # value contains fragment_ids
+                # value contains fragment_ids
+                print(f"Group rotate CW: {value}")
+                self.fragment_manager.rotate_group(value, 90)
             elif transform_type == 'rotate_ccw':
-                self.fragment_manager.rotate_group(value, -90)  # value contains fragment_ids
+                # value contains fragment_ids  
+                print(f"Group rotate CCW: {value}")
+                self.fragment_manager.rotate_group(value, -90)
             elif transform_type == 'translate':
                 # For group translation, value contains (fragment_ids, (dx, dy))
                 fragment_ids, (dx, dy) = value
+                print(f"Group translate: {fragment_ids}, dx={dx}, dy={dy}")
                 self.fragment_manager.translate_group(fragment_ids, dx, dy)
+            return  # Important: return early for group operations
         else:
             # Handle single fragment transformations
             fragment = self.fragment_manager.get_fragment(fragment_id)
