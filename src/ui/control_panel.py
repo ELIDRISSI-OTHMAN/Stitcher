@@ -114,7 +114,7 @@ class ControlPanel(QWidget):
                 background-color: #3a80d2;
             }
         """)
-        self.group_rotate_ccw_btn.clicked.connect(lambda: self.request_group_transform('rotate_ccw'))
+        self.group_rotate_ccw_btn.clicked.connect(lambda: self.request_group_rotation('ccw'))
         rotation_buttons_layout.addWidget(self.group_rotate_ccw_btn)
         
         self.group_rotate_cw_btn = QPushButton("↻ 90° CW")
@@ -134,7 +134,7 @@ class ControlPanel(QWidget):
                 background-color: #3a80d2;
             }
         """)
-        self.group_rotate_cw_btn.clicked.connect(lambda: self.request_group_transform('rotate_cw'))
+        self.group_rotate_cw_btn.clicked.connect(lambda: self.request_group_rotation('cw'))
         rotation_buttons_layout.addWidget(self.group_rotate_cw_btn)
         
         rotation_layout.addLayout(rotation_buttons_layout)
@@ -150,30 +150,30 @@ class ControlPanel(QWidget):
         # Up
         self.group_up_btn = QPushButton("↑")
         self.group_up_btn.setMinimumSize(40, 40)
-        self.group_up_btn.clicked.connect(lambda: self.request_group_transform('translate', (0, -10)))
+        self.group_up_btn.clicked.connect(lambda: self.request_group_translation(0, -10))
         movement_grid.addWidget(self.group_up_btn, 0, 1)
         
         # Left, Center, Right
         self.group_left_btn = QPushButton("←")
         self.group_left_btn.setMinimumSize(40, 40)
-        self.group_left_btn.clicked.connect(lambda: self.request_group_transform('translate', (-10, 0)))
+        self.group_left_btn.clicked.connect(lambda: self.request_group_translation(-10, 0))
         movement_grid.addWidget(self.group_left_btn, 1, 0)
         
         self.group_center_btn = QPushButton("⌂")
         self.group_center_btn.setMinimumSize(40, 40)
         self.group_center_btn.setToolTip("Center group")
-        self.group_center_btn.clicked.connect(lambda: self.request_group_transform('translate', (0, 0)))
+        self.group_center_btn.clicked.connect(lambda: self.request_group_translation(0, 0))
         movement_grid.addWidget(self.group_center_btn, 1, 1)
         
         self.group_right_btn = QPushButton("→")
         self.group_right_btn.setMinimumSize(40, 40)
-        self.group_right_btn.clicked.connect(lambda: self.request_group_transform('translate', (10, 0)))
+        self.group_right_btn.clicked.connect(lambda: self.request_group_translation(10, 0))
         movement_grid.addWidget(self.group_right_btn, 1, 2)
         
         # Down
         self.group_down_btn = QPushButton("↓")
         self.group_down_btn.setMinimumSize(40, 40)
-        self.group_down_btn.clicked.connect(lambda: self.request_group_transform('translate', (0, 10)))
+        self.group_down_btn.clicked.connect(lambda: self.request_group_translation(0, 10))
         movement_grid.addWidget(self.group_down_btn, 2, 1)
         
         movement_layout.addLayout(movement_grid)
@@ -186,6 +186,19 @@ class ControlPanel(QWidget):
         self.group_reset_btn.clicked.connect(self.request_group_reset)
         layout.addWidget(self.group_reset_btn)
         
+    def request_group_rotation(self, direction: str):
+        """Request group rotation"""
+        if self.is_group_selected and self.selected_fragment_ids:
+            if direction == 'cw':
+                self.transform_requested.emit('group', 'rotate_cw', self.selected_fragment_ids)
+            elif direction == 'ccw':
+                self.transform_requested.emit('group', 'rotate_ccw', self.selected_fragment_ids)
+    
+    def request_group_translation(self, dx: float, dy: float):
+        """Request group translation"""
+        if self.is_group_selected and self.selected_fragment_ids:
+            self.transform_requested.emit('group', 'translate', (self.selected_fragment_ids, (dx, dy)))
+    
     def setup_info_group(self):
         """Setup fragment information display"""
         layout = QVBoxLayout(self.info_group)
